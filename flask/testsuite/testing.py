@@ -252,7 +252,7 @@ class SubdomainTestCase(FlaskTestCase):
 
 class CustomTestClient(FlaskClient):
     def __init__(self, username, *args, **kwargs):
-        super(CustomTestClient, self).__init__(*args, **kwargs)
+        super(self, CustomTestClient).__init__(*args, **kwargs)
         self.username = username
 
 
@@ -263,28 +263,22 @@ class TestCustomTestClient(FlaskTestCase):
         self.app.testing = True
         self.app.config['SERVER_NAME'] = 'example.com'
         self.app.test_client_class = CustomTestClient
-        self.client = self.app.test_client('username')
-
-        self._ctx = self.app.test_request_context()
-        self._ctx.push()
-
-    def tearDown(self):
-        if self._ctx is not None:
-            self._ctx.pop()
+        self.client = self.app.test_client(username='username')
     
     def test_client_attributes(self):
         self.assert_equal(self.client.username, 'username')
 
     def test_route(self):
-        @self.app.route('/')
-        def view():
-            return 'route'
+        with self.app.app_context():
+            @self.app.route('/')
+            def view():
+                return 'route'
 
-        url = flask.url_for('view')
-        response = self.client.get(url)
+            url = flask.url_for('view')
+            response = self.client.get(url)
 
-        self.assert_equal(200, response.status_code)
-        self.assert_equal(b'route', response.data)
+            self.assert_equal(200, response.status_code)
+            self.assert_equal(b'route', response.data)
 
 
 def suite():
