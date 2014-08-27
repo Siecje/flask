@@ -11,6 +11,7 @@
 
 import flask
 import unittest
+from flask.testing import FlaskClient
 from flask.testsuite import FlaskTestCase
 from flask._compat import text_type
 
@@ -249,8 +250,40 @@ class SubdomainTestCase(FlaskTestCase):
         self.assert_equal(b'xxx', response.data)
 
 
+class CustomTestClient(FlaskClient):
+    def __init__(self, username, *args, **kwargs):
+        super(self, CustomTestClient).__init__(*args, **kwargs)
+        self.username = username
+
+
+class TestCustomTestClient(FlaskTestCase):
+
+    def setUp(self):
+        self.app = flask.Flask(__name__)
+        self.app.testing = True
+        self.app.config['SERVER_NAME'] = 'example.com'
+        self.app.test_client_class = CustomTestClient
+        self.client = self.app.test_client(username='username')
+    
+    def test_client_attributes(self):
+        self.assert_equal(self.client.username, 'username')
+
+    def test_route(self):
+        with self.app.app_context():
+            @self.app.route('/')
+            def view():
+                return 'route'
+
+            url = flask.url_for('view')
+            response = self.client.get(url)
+
+            self.assert_equal(200, response.status_code)
+            self.assert_equal(b'route', response.data)
+
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestToolsTestCase))
     suite.addTest(unittest.makeSuite(SubdomainTestCase))
+    suite.addTest(unittest.makeSuite(TestCustomTestClient))
     return suite
